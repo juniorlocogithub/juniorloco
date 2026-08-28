@@ -2,7 +2,7 @@ backend:
   name: github
   repo: juniorlocogithub/juniorloco
   branch: main
-  base_url: https://api.netlify.com # Lo cambiaremos al worker o auth provider
+  base_url: https://cms-auth.junior-crazy-doom.workers.dev/
   auth_endpoint: auth
 
 media_folder: "uploads"
