@@ -27,12 +27,12 @@
         </div>
     </div>
 
-    <!-- Contenido Principal (Actualizaciones Diarias) -->
+    <!-- Contenido Principal -->
     <main class="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- Contenedor dinámico donde se cargarán los artículos de Decap CMS -->
+        <!-- Contenedor dinámico de publicaciones o aviso de restricción -->
         <div id="posts-container" class="md:col-span-2 space-y-6">
             <article class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
-                <p class="text-gray-500">Cargando publicaciones...</p>
+                <p class="text-gray-500">Verificando sesión...</p>
             </article>
         </div>
 
@@ -41,7 +41,6 @@
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
                 <h3 class="font-bold text-lg mb-2">Apoya este proyecto</h3>
                 <p class="text-sm text-gray-600 mb-4">Ayúdanos a mantener la página activa con una pequeña aportación.</p>
-                <!-- Botón de PayPal de ejemplo -->
                 <a href="https://www.paypal.com/donate?business=juniorloco@msn.com&currency_code=USD" target="_blank" class="inline-block bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold px-6 py-2 rounded-lg shadow-sm w-full text-center">
                 Donar con PayPal
                 </a>
@@ -54,46 +53,68 @@
         <p>&copy; 2026 JNRCloud. Todos los derechos reservados.</p>
     </footer>
 
-    <!-- Script combinado: Verificación de Sesión + Carga de Archivos Markdown -->
+    <!-- Script con validación de perfil, avatares y control de acceso -->
     <script>
-        // Configuración de Supabase (Reemplaza con tus datos reales)
         const SUPABASE_URL = 'https://wvqpofhgzhjoiwvpqihp.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_TVIraqS4yq1Uk-sgXEqk8Q_mDdggToO';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         async function initApp() {
-            // 1. Validar si el usuario ha iniciado sesión
             try {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 const accountBtn = document.getElementById('account-btn');
+                const navContainer = document.getElementById('nav-container');
 
                 if (session && session.user) {
-                    const userEmail = session.user.email;
-                    const navContainer = document.getElementById('nav-container');
-                    
+                    // Extraer los metadatos guardados en el registro (Nickname y Avatar)
+                    const metadata = session.user.user_metadata || {};
+                    const username = metadata.username || session.user.email.split('@')[0];
+                    const avatar = metadata.avatar || '🚀';
+
                     if (accountBtn) accountBtn.remove();
 
-                    const userSpan = document.createElement('span');
-                    userSpan.className = 'text-sm text-gray-600 hidden md:inline';
-                    userSpan.textContent = userEmail;
+                    // Mostrar el Avatar y el Nickname en la barra superior en lugar del correo
+                    const profileDiv = document.createElement('div');
+                    profileDiv.className = 'flex items-center space-x-2 bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200';
+                    profileDiv.innerHTML = `
+                        <span class="text-xl">${avatar}</span>
+                        <span class="text-sm font-semibold text-gray-700">${username}</span>
+                    `;
 
                     const logoutBtn = document.createElement('button');
-                    logoutBtn.className = 'bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition';
+                    logoutBtn.className = 'bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition';
                     logoutBtn.textContent = 'Salir';
                     logoutBtn.onclick = async () => {
                         await supabaseClient.auth.signOut();
                         window.location.reload();
                     };
 
-                    navContainer.appendChild(userSpan);
+                    navContainer.appendChild(profileDiv);
                     navContainer.appendChild(logoutBtn);
+
+                    // Si el usuario está registrado e inició sesión, se cargan las publicaciones completas
+                    loadPosts();
+                } else {
+                    // Si NO ha iniciado sesión, se bloquea el contenido y se muestra el aviso
+                    const container = document.getElementById('posts-container');
+                    container.innerHTML = `
+                        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center space-y-4">
+                            <div class="text-5xl mb-2">🔒</div>
+                            <h2 class="text-2xl font-bold text-gray-900">Contenido Exclusivo para Miembros</h2>
+                            <p class="text-gray-600 text-sm max-w-md mx-auto">
+                                Para ver las publicaciones completas, acceder a los enlaces y disfrutar de todo el contenido del sitio, debes iniciar sesión o registrarte.
+                            </p>
+                            <div class="pt-4 flex justify-center gap-4">
+                                <a href="login.html" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl shadow transition">
+                                    Iniciar Sesión / Registrarse
+                                </a>
+                            </div>
+                        </div>
+                    `;
                 }
             } catch (err) {
                 console.error('Error al comprobar la sesión de Supabase:', err);
             }
-
-            // 2. Cargar publicaciones dinámicas
-            loadPosts();
         }
 
         async function loadPosts() {
@@ -112,7 +133,6 @@
                     return;
                 }
 
-                // Invertir para mostrar los más recientes primero
                 files.reverse();
 
                 for (const file of files) {
@@ -120,21 +140,22 @@
                         const fileResponse = await fetch(file.download_url);
                         const markdownText = await fileResponse.text();
                         
-                        // Extraer el título del Frontmatter
                         const titleMatch = markdownText.match(/title:\s*["']?([^"'\n]+)["']?/);
                         const title = titleMatch ? titleMatch[1] : file.name.replace('.md', '').replace(/-/g, ' ');
                         
-                        // Extraer un pequeño fragmento del contenido (omitiendo el frontmatter)
                         const contentWithoutFrontmatter = markdownText.replace(/^---[\s\S]*?---/, '').trim();
                         const excerpt = contentWithoutFrontmatter.substring(0, 150) + (contentWithoutFrontmatter.length > 150 ? '...' : '');
 
                         const postElement = document.createElement('article');
-                        postElement.className = 'bg-white p-6 rounded-xl shadow-sm border border-gray-100';
+                        postElement.className = 'bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-3';
                         postElement.innerHTML = `
-                            <span class="text-xs text-blue-600 font-semibold uppercase">Publicación</span>
-                            <h2 class="text-2xl font-bold mt-1 mb-2 text-gray-900">${title}</h2>
-                            <p class="text-gray-600 mb-4">${excerpt || 'Contenido de la publicación...'}</p>
-                            <span class="text-xs text-gray-400">Actualizado recientemente</span>
+                            <span class="text-xs text-blue-600 font-semibold uppercase tracking-wider">Publicación Exclusiva</span>
+                            <h2 class="text-2xl font-bold text-gray-900">${title}</h2>
+                            <p class="text-gray-600">${excerpt || 'Contenido de la publicación...'}</p>
+                            <div class="pt-2 flex items-center justify-between border-t border-gray-100 text-xs text-gray-400">
+                                <span>Acceso verificado</span>
+                                <span class="text-blue-600 font-medium">Lectura completa y enlaces habilitados</span>
+                            </div>
                         `;
                         container.appendChild(postElement);
                     }
