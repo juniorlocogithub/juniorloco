@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso - Mi Sitio Web</title>
+    <title>Acceso - JNRCloud.lat Web</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- SDK de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Cloudflare Turnstile SDK para CAPTCHA -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
-<body class="bg-gray-900 text-gray-100 flex items-center justify-center min-h-screen">
+<body class="bg-gray-900 text-gray-100 flex items-center justify-center min-h-screen p-4">
 
     <div class="bg-gray-800 p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-700">
         <h1 id="form-title" class="text-2xl font-bold text-center mb-6 text-blue-400">Iniciar Sesión</h1>
@@ -17,6 +19,35 @@
         <div id="alert-box" class="hidden mb-4 p-3 rounded-lg text-sm text-center"></div>
 
         <form id="auth-form" class="space-y-4">
+            <!-- Campos exclusivos para Registro (Username y Avatar) -->
+            <div id="register-fields" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Nombre de usuario (Nickname)</label>
+                    <input type="text" id="username" placeholder="Tu apodo o nombre" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Elige tu icono de perfil</label>
+                    <div class="flex justify-around gap-2" id="avatar-selector">
+                        <label class="cursor-pointer p-2 bg-gray-700 rounded-xl border-2 border-transparent hover:border-blue-500 transition text-2xl flex items-center justify-center">
+                            <input type="radio" name="avatar" value="🚀" class="hidden" checked> 🚀
+                        </label>
+                        <label class="cursor-pointer p-2 bg-gray-700 rounded-xl border-2 border-transparent hover:border-blue-500 transition text-2xl flex items-center justify-center">
+                            <input type="radio" name="avatar" value="💻" class="hidden"> 💻
+                        </label>
+                        <label class="cursor-pointer p-2 bg-gray-700 rounded-xl border-2 border-transparent hover:border-blue-500 transition text-2xl flex items-center justify-center">
+                            <input type="radio" name="avatar" value="⚡" class="hidden"> ⚡
+                        </label>
+                        <label class="cursor-pointer p-2 bg-gray-700 rounded-xl border-2 border-transparent hover:border-blue-500 transition text-2xl flex items-center justify-center">
+                            <input type="radio" name="avatar" value="🛡️" class="hidden"> 🛡️
+                        </label>
+                        <label class="cursor-pointer p-2 bg-gray-700 rounded-xl border-2 border-transparent hover:border-blue-500 transition text-2xl flex items-center justify-center">
+                            <input type="radio" name="avatar" value="🦊" class="hidden"> 🦊
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <label class="block text-sm font-medium text-gray-300 mb-1">Correo electrónico</label>
                 <input type="email" id="email" required placeholder="tu@correo.com" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500">
@@ -25,6 +56,12 @@
             <div>
                 <label class="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
                 <input type="password" id="password" required placeholder="••••••••" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500">
+            </div>
+
+            <!-- Widget CAPTCHA (Turnstile) visible únicamente en Registro -->
+            <div id="captcha-container" class="hidden flex justify-center my-2">
+                <!-- Nota: Si quieres probar de inmediato sin registrarte en Cloudflare, usa la clave de prueba: 1x00000000000000000000AA -->
+                <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="dark"></div>
             </div>
 
             <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition duration-200">
@@ -44,9 +81,9 @@
     </div>
 
     <script>
-        // REEMPLAZA ESTOS DATOS CON LOS DE TU PROYECTO DE SUPABASE
-        const SUPABASE_URL = 'https://wvqpofhgzhjoiwvpqihp.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_TVIraqS4yq1Uk-sgXEqk8Q_mDdggToO';
+        // Credenciales de Supabase heredadas de tu configuración
+        const SUPABASE_URL = 'https://XXXwvqpofhgzhjoiwvpqihp.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_XXXTVIraqS4yq1Uk-sgXEqk8Q_mDdggToO';
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -57,6 +94,18 @@
         const toggleModeBtn = document.getElementById('toggle-mode');
         const authForm = document.getElementById('auth-form');
         const alertBox = document.getElementById('alert-box');
+        const registerFields = document.getElementById('register-fields');
+        const captchaContainer = document.getElementById('captcha-container');
+
+        // Selección visual de los avatares predeterminados
+        document.querySelectorAll('#avatar-selector label').forEach(label => {
+            label.addEventListener('click', () => {
+                document.querySelectorAll('#avatar-selector label').forEach(l => l.classList.remove('border-blue-500', 'bg-gray-600'));
+                label.classList.add('border-blue-500', 'bg-gray-600');
+                label.querySelector('input').checked = true;
+            });
+        });
+        document.querySelector('#avatar-selector label').classList.add('border-blue-500', 'bg-gray-600');
 
         // Cambiar entre Iniciar Sesión y Registrarse
         toggleModeBtn.addEventListener('click', () => {
@@ -65,10 +114,16 @@
                 formTitle.textContent = 'Iniciar Sesión';
                 submitBtn.textContent = 'Entrar';
                 toggleModeBtn.textContent = '¿No tienes cuenta? Regístrate aquí';
+                registerFields.classList.add('hidden');
+                captchaContainer.classList.add('hidden');
+                document.getElementById('username').removeAttribute('required');
             } else {
                 formTitle.textContent = 'Crear Cuenta';
                 submitBtn.textContent = 'Registrarse';
                 toggleModeBtn.textContent = '¿Ya tienes cuenta? Inicia sesión';
+                registerFields.classList.remove('hidden');
+                captchaContainer.classList.remove('hidden');
+                document.getElementById('username').setAttribute('required', 'true');
             }
             alertBox.classList.add('hidden');
         });
@@ -92,15 +147,37 @@
                     showAlert('¡Inicio de sesión exitoso! Redirigiendo...', 'success');
                     setTimeout(() => window.location.href = 'index.html', 1500);
                 } else {
-                    // Registrarse
-                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    // Registrarse con Username, Avatar y Captcha
+                    const username = document.getElementById('username').value.trim();
+                    const selectedAvatar = document.querySelector('input[name="avatar"]:checked').value;
+                    
+                    let captchaToken = undefined;
+                    try {
+                        captchaToken = turnstile.getResponse();
+                    } catch (err) {
+                        console.log('Turnstile no requerido o no cargado');
+                    }
+
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email,
+                        password,
+                        options: {
+                            data: {
+                                username: username,
+                                avatar: selectedAvatar
+                            },
+                            captchaToken: captchaToken
+                        }
+                    });
                     if (error) throw error;
 
-                    showAlert('¡Registro exitoso! Revisa tu correo o inicia sesión.', 'success');
+                    showAlert('¡Registro exitoso! Ya puedes iniciar sesión.', 'success');
                     isLoginMode = true;
                     formTitle.textContent = 'Iniciar Sesión';
                     submitBtn.textContent = 'Entrar';
                     toggleModeBtn.textContent = '¿No tienes cuenta? Regístrate aquí';
+                    registerFields.classList.add('hidden');
+                    captchaContainer.classList.add('hidden');
                 }
             } catch (error) {
                 showAlert(error.message, 'error');
