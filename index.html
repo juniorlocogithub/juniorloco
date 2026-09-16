@@ -121,7 +121,7 @@
             }
         }
 
-        async function loadPosts() {
+async function loadPosts() {
             const repo = 'juniorlocogithub/juniorloco'; 
             const url = `https://api.github.com/repos/${repo}/contents/content`;
             
@@ -147,15 +147,16 @@
                         const titleMatch = markdownText.match(/title:\s*["']?([^"'\n]+)["']?/);
                         const title = titleMatch ? titleMatch[1] : file.name.replace('.md', '').replace(/-/g, ' ');
                         
+                        // Obtenemos todo el contenido sin las cabeceras frontmatter y convertimos los saltos de línea a <br>
                         const contentWithoutFrontmatter = markdownText.replace(/^---[\s\S]*?---/, '').trim();
-                        const excerpt = contentWithoutFrontmatter.substring(0, 150) + (contentWithoutFrontmatter.length > 150 ? '...' : '');
+                        const fullContent = contentWithoutFrontmatter.replace(/\n/g, '<br>');
 
                         const postElement = document.createElement('article');
                         postElement.className = 'bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-3';
                         postElement.innerHTML = `
                             <span class="text-xs text-blue-600 font-semibold uppercase tracking-wider">Publicación Exclusiva</span>
                             <h2 class="text-2xl font-bold text-gray-900">${title}</h2>
-                            <p class="text-gray-600">${excerpt || 'Contenido de la publicación...'}</p>
+                            <div class="text-gray-600 space-y-2 leading-relaxed">${fullContent || 'Contenido de la publicación...'}</div>
                             <div class="pt-2 flex items-center justify-between border-t border-gray-100 text-xs text-gray-400">
                                 <span>Acceso verificado</span>
                                 <span class="text-blue-600 font-medium">Lectura completa y enlaces habilitados</span>
