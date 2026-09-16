@@ -4,7 +4,7 @@ date: 2026-09-16T19:00:00.000-04:00
 ---
 asd
 
-```
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
