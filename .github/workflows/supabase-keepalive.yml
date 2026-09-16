@@ -1,0 +1,26 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Se ejecuta cada 4 días a las 00:00 UTC
+    - cron: '0 0 */4 * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente para probar
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send request to Supabase API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+
+          echo "Respuesta HTTP de Supabase: $response"
+
+          if [ "$response" -eq 200 ] || [ "$response" -eq 401 ]; then
+            echo "¡Conexión exitosa! El proyecto sigue activo."
+          else
+            echo "Advertencia: Código de respuesta inesperado ($response)"
+            exit 1
+          fi
