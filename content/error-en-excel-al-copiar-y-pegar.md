@@ -11,3 +11,5 @@ Cierra todos las aplicaciones de Microsoft Office y ejecuta el comando en una ve
 ```
 
 Posteriormente abre Excel y prueba nuevamente copiar y pegar, el error ya deberia haberse corregido.
+
+`"C:\Program Files\Common Files\Microsoft Shared\OFFICE16\Oarpmany.exe" /removereleaseinpatch "{90160000-0012-0000-1000-0000000FF1CE}" "{27882596-A8ED-4382-9C71-6CD2DD19F732}" "1033" "0"`
